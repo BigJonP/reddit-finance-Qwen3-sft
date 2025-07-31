@@ -1,0 +1,4 @@
+/venv
+/data
+/Qwen
+/src/lora/training_data.jsonl
