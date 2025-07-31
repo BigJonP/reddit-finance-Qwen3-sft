@@ -1,8 +1,9 @@
+import json
 import re
 
 import polars as pl
 
-with open("title_patterns.txt", "r") as file:
+with open("src/preprocessing/title_patterns.txt", "r") as file:
     patterns = file.readlines()
 
 patterns = [pattern.strip() for pattern in patterns]
@@ -40,3 +41,7 @@ for row in df.iter_rows(named=True):
             + row["body"]
         }
     )
+
+with open("src/lora/training_data.jsonl", "w") as file:
+    for row in training_data:
+        file.write(json.dumps(row) + "\n")

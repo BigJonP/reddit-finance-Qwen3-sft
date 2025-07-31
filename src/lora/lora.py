@@ -1,14 +1,14 @@
-from constants import MODEL_NAME
+from constants import MODEL_NAME, SAMPLES
 from datasets import load_dataset
 from peft import LoraConfig, TaskType, get_peft_model
-from transformers import (AutoModelForCausalLM, AutoTokenizer, Trainer,
-                          TrainingArguments)
+from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments
 from util import get_model_output, log_model_output, parse_instruction_response
 
-samples = [3, 7, 10, 15, 3451]
 
 dataset = load_dataset("json", data_files="src/lora/training_data.jsonl", split="train")
+sample_rows = [parse_instruction_response(dataset[sample]["text"]) for sample in SAMPLES]
 dataset = dataset.train_test_split(test_size=0.1)
+
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 pre_sft_model = AutoModelForCausalLM.from_pretrained(
@@ -17,9 +17,7 @@ pre_sft_model = AutoModelForCausalLM.from_pretrained(
 
 
 def tokenize(examples):
-    return tokenizer(
-        examples["text"], truncation=True, padding="max_length", max_length=512
-    )
+    return tokenizer(examples["text"], truncation=True, padding="max_length", max_length=512)
 
 
 lora_config = LoraConfig(
@@ -38,7 +36,11 @@ tokenized_dataset = dataset.map(tokenize, batched=True)
 training_args = TrainingArguments(
     output_dir=f"./{MODEL_NAME}-sft",
     per_device_train_batch_size=4,
-    num_train_epochs=3,
+    num_train_epochs=5,
+    learning_rate=2e-4,
+    weight_decay=0.01,
+    warmup_ratio=0.03,
+    logging_steps=10,
     load_best_model_at_end=True,
     save_strategy="epoch",
     eval_strategy="epoch",
@@ -55,8 +57,7 @@ trainer = Trainer(
 
 sft_model.train()
 
-for sample in samples:
-    sample_row = parse_instruction_response(dataset["test"][sample]["text"])
+for sample_row in sample_rows:
     pre_output = get_model_output(sample_row["instruction"], tokenizer, pre_sft_model)
     post_output = get_model_output(sample_row["instruction"], tokenizer, sft_model)
     log_model_output(
@@ -68,4 +69,4 @@ for sample in samples:
     )
 
 sft_model.save_pretrained(f"./{MODEL_NAME}-model-checkpoint")
-tokenizer.save_pretrained(f"./{MODEL_NAME}-sft-checkpoint")
+tokenizer.save_pretrained(f"./{MODEL_NAME}-tokenizer-checkpoint")

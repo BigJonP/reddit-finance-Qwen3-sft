@@ -2,3 +2,7 @@
 /data
 /Qwen
 /src/lora/training_data.jsonl
+
+__pycache__/
+*.py[codz]
+*$py.class
